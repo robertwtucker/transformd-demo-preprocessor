@@ -8,9 +8,5 @@
   "devDependencies": {
     "@quadient/evolve-scripting-api": "latest",
     "typescript": "^4.9.5"
-  },
-  "dependencies": {
-    "@types/jsonpath": "^0.2.0",
-    "jsonpath": "^1.1.1"
   }
 }
