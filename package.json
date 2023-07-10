@@ -6,7 +6,11 @@
     "script-upload": "swarm script upload"
   },
   "devDependencies": {
-    "typescript": "^4.7.4",
-    "@quadient/evolve-scripting-api": "latest"
+    "@quadient/evolve-scripting-api": "latest",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "@types/jsonpath": "^0.2.0",
+    "jsonpath": "^1.1.1"
   }
 }
