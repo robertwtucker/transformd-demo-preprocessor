@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "es2019",
     "lib": ["es2021"],
+    "moduleResolution": "Node",
     "typeRoots": ["node_modules/@quadient"]
   }
 }
