@@ -13,31 +13,30 @@ import {
 export function getDescription(): ScriptDescription {
   return {
     description:
-      'Demo preprocessor script for integration with Transformd. Processes an input JSON file and stores data used by the Transformd Connector in a subsequent pipeline step.',
+      'Demo preprocessor script for integration with Transformd. Processes an input JSON file and stores data used in a subsequent pipeline step by the Transformd Connector.',
     icon: 'action',
     input: [
       {
         id: 'inputDataFile',
-        displayName: 'Input Data File',
-        description: 'JSON-formatted input data file to read from.',
+        displayName: 'Input data file',
+        description: 'Data file to read input from (JSON format).',
         type: 'InputResource',
         required: true,
       },
       {
         id: 'outputSearchValuesFile',
-        displayName: 'Output Search Values File',
+        displayName: 'Output search values file',
         description:
-          'Output file to store the calculated search value(s) for use in a subsequent Transformd Connector step.',
+          'Output file to store the calculated search value(s) in for use in a subsequent pipeline step.',
         type: 'OutputResource',
         required: true,
       },
       {
         id: 'sessionSearchPath',
-        displayName: 'Form Session Search Value Path',
+        displayName: 'Form session search value path',
         description:
           'A JSONPath expression for the input data element(s) to use to calculate a unique form session identifier.',
-        defaultValue:
-          'concat("-", $.Clients[*].ClientID, $.Clients[*].ClaimID)',
+        defaultValue: 'concat(-, $.Clients[*].ClientID, $.Clients[*].ClaimID)',
         type: 'String',
         required: true,
       },
@@ -54,13 +53,12 @@ export async function execute(context: Context): Promise<void> {
       .getFile(context.parameters.outputSearchValuesFile as string)
       .delete()
   } catch (err) {
-    // Ignore error if file does not exist
+    // Ignore error (i.e. file does not exist)
   }
 
-  // Process the JSONPath expression(s) provided via the 'sessionSearchPath'
-  // input param. To support derived key fields, a synthetic 'concat()'
-  // function is made available. Usage:
-  //   concat(<delimiter>, <JSONPath expr 1>, <JSONPath expr 2, ...)
+  // Parse the JSONPath expression(s) provided via the 'sessionSearchPath'
+  // input param to get the unique value(s) that will be used as an
+  // identifier in a later step.
   //
   const sessionSearchPath = context.parameters.sessionSearchPath as string
   const pathExpressions = getSearchPathExpressions(sessionSearchPath)
@@ -102,8 +100,8 @@ export async function execute(context: Context): Promise<void> {
     context.parameters.inputDataFile as string
   )
 
-  // Parse the data to resolve the required JSONPath values to the elements'
-  // actual data values
+  // Parse the data to resolve the search value JSONPath expression(s) to the
+  // elements' actual data values.
   //
   const materializedPaths = [...new Set(pathValues)]
   const parser = new JsonMaterializingParser(parserCallback, {
@@ -128,7 +126,7 @@ export async function execute(context: Context): Promise<void> {
 }
 
 /**
- * Retrieves the search (node) value(s) from a JSON object as specified by the
+ * Retrieves the search value(s) from a JSON object as specified by the
  * JSONPath expression(s) provided. To support derived key fields, a synthetic
  * 'concat()' function is made available. Usage:
  *     concat(<delimiter>, <JSONPath expr 1>, <JSONPath expr 2, ...)
