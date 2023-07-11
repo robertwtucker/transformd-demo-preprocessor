@@ -93,15 +93,15 @@ export async function execute(context: Context): Promise<void> {
     }
   }
 
-  // Read input data
+  // Read the input data
   //
   console.log(`Reading input file: ${context.parameters.inputDataFile}`)
   const inputData = await context.read(
     context.parameters.inputDataFile as string
   )
 
-  // Parse the data to resolve the search value JSONPath expression(s) to the
-  // elements' actual data values.
+  // Parse the input data to resolve the search value JSONPath expression(s) to
+  // the elements' actual data values.
   //
   const materializedPaths = [...new Set(pathValues)]
   const parser = new JsonMaterializingParser(parserCallback, {
