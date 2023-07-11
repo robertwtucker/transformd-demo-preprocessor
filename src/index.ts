@@ -186,7 +186,7 @@ function getConcatenatedPathArgs(path: string): string[] {
 }
 
 /**
- * Helper function to parse out the concatenation delimiiter from the path expression.
+ * Helper function to parse out the concatenation delimiter from the path expression.
  * @param {string} path concatenated JSONPath expressions to the requested nodes
  * @returns string value for the delimiter (first argument to the concat() function)
  */
