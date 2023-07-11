@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-import * as jp from 'jsonpath'
+import {
+  JsonEvent,
+  JsonEventType,
+  JsonMaterializingParser,
+  StringReadableStream,
+} from '@quadient/evolve-data-transformations'
 
 export function getDescription(): ScriptDescription {
   return {
@@ -45,125 +50,157 @@ export async function execute(context: Context): Promise<void> {
   // Delete output file (if it exists)
   //
   try {
-    await context.getFile(context.parameters.outputSearchValuesFile as string).delete()
+    await context
+      .getFile(context.parameters.outputSearchValuesFile as string)
+      .delete()
   } catch (err) {
     // Ignore error if file does not exist
   }
 
+  // Process the JSONPath expression(s) provided via the 'sessionSearchPath'
+  // input param. To support derived key fields, a synthetic 'concat()'
+  // function is made available. Usage:
+  //   concat(<delimiter>, <JSONPath expr 1>, <JSONPath expr 2, ...)
+  //
+  const sessionSearchPath = context.parameters.sessionSearchPath as string
+  const pathExpressions = getSearchPathExpressions(sessionSearchPath)
+  const concatDelimiter =
+    pathExpressions.length > 1
+      ? getConcatenatedDelimiter(sessionSearchPath)
+      : ''
+
+  let pathValues: string[] = [],
+    fieldNames: string[] = []
+  for (let i = 0; i < pathExpressions.length; i++) {
+    const path = pathExpressions[i].split('.')
+    fieldNames.push(path?.pop() ?? '')
+    if (fieldNames[i].length === 0) {
+      throw new Error(`Invalid JSONPath expression '${pathExpressions[i]}'.`)
+    }
+    pathValues.push(path!.join('.'))
+  }
+
+  let searchValues: string[] = []
+  const parserCallback = async function (event: JsonEvent) {
+    let parserValue = ''
+    if (event.type === JsonEventType.ANY_VALUE) {
+      const data = event.data
+      for (let i = 0; i < fieldNames.length; i++) {
+        parserValue =
+          i < fieldNames.length - 1
+            ? parserValue.concat(data[fieldNames[i]].concat(concatDelimiter))
+            : parserValue.concat(data[fieldNames[i]])
+      }
+      searchValues.push(parserValue)
+    }
+  }
+
   // Read input data
+  //
   console.log(`Reading input file: ${context.parameters.inputDataFile}`)
   const inputData = await context.read(
     context.parameters.inputDataFile as string
   )
 
-  // Process input data file using JSONPath expression provided via
-  // 'sessionSearchPath' input param.
+  // Parse the data to resolve the required JSONPath values to the elements'
+  // actual data values
   //
-  let inputJson = {}
-  try {
-    inputJson = JSON.parse(inputData)
-  } catch (err) {
-    throw new Error('Failed to parse input data as JSON.')
-  }
+  const materializedPaths = [...new Set(pathValues)]
+  const parser = new JsonMaterializingParser(parserCallback, {
+    materializedPaths,
+  })
+  await parser.parse(inputData)
+  await parser.flush()
 
-  const searchValues = getSearchValues(
-    inputJson,
-    context.parameters.sessionSearchPath as string
+  // Write the resolved search values to the output file in JSON format
+  //
+  const input = new StringReadableStream(
+    '{"values":' + JSON.stringify(searchValues) + '}'
   )
-
-  // Write the calculated search values to the output file
-  //
   const outputFile = context.parameters.outputSearchValuesFile as string
-  console.log(`Writing search values to file: ${outputFile}`)
-  await context.write(outputFile, searchValues.toString())
+  console.log(
+    `Writing search values (${searchValues.length}) to file: ${outputFile}`
+  )
+  const outputStream = await context.openWriteText(outputFile)
+  input.pipeTo(outputStream)
 
   console.log('Done.')
 }
 
 /**
-* Retrieves the search (node) value(s) from a JSON object as specified by the
-* JSONPath expression(s) provided. To support derived key fields, a synthetic
-* 'concat()' function is made available. Usage:
-*     concat(<delimiter>, <JSONPath expr 1>, <JSONPath expr 2, ...)
-* @param {object} json JSON object to interrogate for values
-* @param {string} searchPath JSONPath expression(s) for the search value
-* @returns {string[]} An array of resolved search value(s)
-*/
-function getSearchValues(json: object, searchPath: string): string[] {
-  const concatStartToken = 'concat('
-  const concatEndToken = ')'
-  let searchValues: string[] = []
+ * Retrieves the search (node) value(s) from a JSON object as specified by the
+ * JSONPath expression(s) provided. To support derived key fields, a synthetic
+ * 'concat()' function is made available. Usage:
+ *     concat(<delimiter>, <JSONPath expr 1>, <JSONPath expr 2, ...)
+ * @param {string} path JSONPath expression(s) for the search value
+ * @returns {string[]} An array of resolved search path(s)
+ */
+function getSearchPathExpressions(path: string): string[] {
+  let pathValues: string[] = []
 
   // Handle concat()'d' JSONPath expressions
   //
-  if (searchPath.startsWith(concatStartToken)) {
-    const concatArgs = searchPath.substring(
-      concatStartToken.length,
-      searchPath.endsWith(concatEndToken)
-        ? searchPath.length - 1
-        : searchPath.length
-    )
-    // Validate concat() arguments
-    //
-    const pathArgs = concatArgs.split(',')
-    if (pathArgs && pathArgs.length < 3) {
-      throw new Error('Invalid number or arguments to concat().')
-    }
-    const concatString = pathArgs!.shift()!.trim()
-    // Concatenate the individually resolved JSONPath expressions
+  if (isConcatenated(path)) {
+    const pathArgs = getConcatenatedPathArgs(path)
+    pathArgs!.shift() // Remove the concatDelimiter
+    // Validate the individual JSONPath expressions
     //
     for (let i = 0; i < pathArgs.length; i++) {
       const pathArg = pathArgs[i].trim() ?? ''
-      if (pathArg.startsWith('$')) {
-        const nodeValues = getJsonPathNodeValues(json, pathArg)
-        if (nodeValues.length > 0) {
-          if (searchValues.length > 0) {
-            searchValues = searchValues.map((element, index) =>
-              element.concat(nodeValues[index])
-            )
-          } else {
-            searchValues = nodeValues
-          }
-          // Add the delimiter if more search values to resolve
-          //
-          if (i < pathArgs.length - 1) {
-            for (let j = 0; j < searchValues.length; j++) {
-              searchValues[j] = searchValues[j].concat(concatString)
-            }
-          }
-      } else {
-        throw new Error(
-          `No values found using the JSONPath expression '${pathArg}'`
-        )
-        }
-      } else {
-        throw new Error(
-          `Invalid JSONPath argument to concat(): '${pathArg}' (missing root symbol).`
-        )
-      }
+      pathValues.push(hasRoot(pathArg) ? pathArg.substring(1) : pathArg)
     }
   } else {
-  // Single JSONPath expression to resolve
-  //
-  searchValues = getJsonPathNodeValues(json, searchPath)
+    // Single JSONPath expression to validate
+    //
+    pathValues = Array.from(hasRoot(path) ? path.substring(1) : path)
   }
 
-  console.log(`searchValues: ${searchValues}`)
-  return searchValues
+  return pathValues
 }
 
 /**
-* Helper function to parse the actual node values from the JSON object.
-* @param {object} json JSON object
-* @param {path} path JSONPath expression to the required node(s)
-* @returns {string[]} A string array containing the node value(s)
-*/
-function getJsonPathNodeValues(json: object, path: string): string[] {
-  try {
-    const nodes = jp.nodes(json, path)
-    return nodes.flatMap((node) => node.value)
-  } catch (err) {
-    console.log(`Error getting value (${path}) from JSON: ${err}`)
-    return []
+ * Helper function to determine if a JSONPath expression is concatenated.
+ * @param {string} path JSONPath expression to the requested node(s)
+ * @returns boolean value indicating whether the JSONPath expression starts with the concat keyword
+ */
+function isConcatenated(path: string): boolean {
+  return path.startsWith('concat(')
+}
+
+/**
+ * Helper function to parse and validate the arguments to the synthetic concat() function.
+ * @param {string} path concatenated JSONPath expressions
+ * @returns array of arguments to the synthetic concat() function
+ */
+function getConcatenatedPathArgs(path: string): string[] {
+  const concatArgs = path.substring(
+    'concat('.length,
+    path.endsWith(')') ? path.length - 1 : path.length
+  )
+  // Validate concat() arguments
+  //
+  const pathArgs = concatArgs.split(',')
+  if (pathArgs && pathArgs.length < 3) {
+    throw new Error('Invalid number or arguments to concat().')
   }
+
+  return pathArgs
+}
+
+/**
+ * Helper function to parse out the concatenation delimiiter from the path expression.
+ * @param {string} path concatenated JSONPath expressions to the requested nodes
+ * @returns string value for the delimiter (first argument to the concat() function)
+ */
+function getConcatenatedDelimiter(path: string): string {
+  return getConcatenatedPathArgs(path)!.shift()!.trim()
+}
+
+/**
+ * Helper function to check if the JSONPath expression starts with the root symbol ('$').
+ * @param {string} path JSONPath expression to evaluate
+ * @returns boolean value indicating whether the JSONPath expression is rooted
+ */
+function hasRoot(path: string): boolean {
+  return path.startsWith('$')
 }
