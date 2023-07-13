@@ -27,6 +27,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - shell: bash
-        run: npm install -g bobril
+        run: npm install -g bobril-build
       - run: npm ci
       - run: npm run build
