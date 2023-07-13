@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [master]
 env:
-  NODE_VERSION: 18.x
+  NODE_VERSION: 18
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -15,6 +15,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - run: npm ci
       - run: npm run lint
   build:
@@ -24,5 +25,8 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - shell: bash
+        run: npm install -g bobril
       - run: npm ci
       - run: npm run build
