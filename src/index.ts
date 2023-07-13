@@ -67,7 +67,7 @@ export async function execute(context: Context): Promise<void> {
       ? getConcatenatedDelimiter(sessionSearchPath)
       : ''
 
-  let pathValues: string[] = [],
+  const pathValues: string[] = [],
     fieldNames: string[] = []
   for (let i = 0; i < pathExpressions.length; i++) {
     const path = pathExpressions[i].split('.')
@@ -78,7 +78,7 @@ export async function execute(context: Context): Promise<void> {
     pathValues.push(path!.join('.'))
   }
 
-  let searchValues: string[] = []
+  const searchValues: string[] = []
   const parserCallback = async function (event: JsonEvent) {
     let parserValue = ''
     if (event.type === JsonEventType.ANY_VALUE) {
