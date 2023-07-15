@@ -22,7 +22,7 @@ installed:
 
 - [NodeJS](https://nodejs.org)
 - [npm](https://npmjs.com)
-- [Bobril](https://www.npmjs.com/package/bobril)
+- [Bobril build](https://www.npmjs.com/package/bobril-build)
 - [Swarm](https://www.npmjs.com/package/@quadient/swarm) (optional)
 
 ### Build and Use
@@ -33,14 +33,14 @@ To build the script component, clone this repository:
 git clone https://github.com/robertwtucker/transformd-demo-preprocessor.git
 ```
 
-Run Bobril to generate the `dist/a.js` file:
+Run `Bobril build` to generate the `dist/a.js` file:
 
 ```bash
 cd transformd-demo-preprocessor
 npm run build
 ```
 
-Open the Generate service UI and select the _Scripting_ section under the
+Open the **Generate** service UI and select the _Scripting_ section under the
 _Content Manager_ tab. Click the _Upload New_ button to open the Upload New
 Script dialog. Fill out the _Name_ and _Category_ fields. For the _Script_
 field, browse to the `dist/a.js` file in the project directory.
@@ -51,7 +51,7 @@ As an alternative, if `swarm` is installed and configured (beyond the scope
 of this document), you can automate the process in the terminal:
 
 ```bash
-$ npm run script-upload
+npm run script-upload
 ```
 
 To create a pipeline, select the _Processing Pipelines_ section under the
@@ -69,7 +69,7 @@ See the [open issues](https://github.com/robertwtucker/transformd-demo-preproces
 
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
