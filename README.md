@@ -14,6 +14,10 @@ customer communication solution (Evolve) and the [Transformd](https://transformd
 platform for creating personalized customer experiences through forms and
 workflow automation.
 
+**NOTE**: Based on a change in strategy (see [transformd-demo-connector#16](https://github.com/robertwtucker/transformd-demo-connector/issues/16)),
+the need for continued development of this component was obviated. The implementation as it is still has some value as an example of how to
+manipulate files in Evolve and will be left in its current state.
+
 ## Getting Started
 
 ### Prerequisites
